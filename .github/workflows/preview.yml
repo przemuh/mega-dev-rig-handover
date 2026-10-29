@@ -1,0 +1,48 @@
+name: Publish digest preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane_marker:
+        description: Lane marker for the preview; leave blank for cleanup
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Generate preview
+        env:
+          LANE_MARKER: ${{ inputs.lane_marker }}
+        run: |
+          pnpm start > /tmp/rig.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8787/digest/2026-10-28 -o /tmp/index.html; then break; fi
+            sleep 1
+          done
+          test -s /tmp/index.html
+          mkdir -p /tmp/rig-preview
+          mv /tmp/index.html /tmp/rig-preview/index.html
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: /tmp/rig-preview
+          retention-days: 1
+      - uses: actions/deploy-pages@v4
+        id: deploy
