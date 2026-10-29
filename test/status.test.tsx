@@ -11,6 +11,11 @@ describe('status board', () => {
     expect(res.status).toBe(200);
     expect(html).toContain('TEST-MARKER');
     expect(html).toContain('2026-10-28');
+    for (const night of ['2026-10-28', '2026-10-27']) {
+      expect(html).toContain(`href="/digest/${night}"`);
+      expect((await createApp(config).request(`/digest/${night}`)).status).toBe(200);
+    }
+    expect(html).toMatch(/ok \d+ \/ retry \d+ \/ fail \d+/);
   });
 
   it('health answers with the lane id', async () => {
